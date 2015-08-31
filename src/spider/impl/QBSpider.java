@@ -5,6 +5,12 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,6 +25,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+
+import spider.util.SQLite3Util;
 
 /**
  * 糗事百科蜘蛛
@@ -73,21 +81,17 @@ public class QBSpider {
 		Elements contents = new Elements(); 
 		Document doc = getDocumentFromUrl(this.url);
 		Elements pages = doc.select("div.pagenumber");
+		
 		for (Element page : pages) {
 			Elements hrefs = page.select("a[href]");
 			
-			for (int i = 0;i<2;i++) {
-				Element href = hrefs.get(i);
+			for (Element href : hrefs) {
 			//	 System.out.println(href.baseUri());
 				String moreUrl = /*this.baseUrl + */href.absUrl("href");
-				 System.out.println(moreUrl);
+			//	 System.out.println(moreUrl);
+			//	 System.out.println("-------------------------------------");
 				contents.addAll(parseText(getDocumentFromUrl(moreUrl)));
 			}
-		}
-		
-		for (Element content : contents) {
-			System.out.println(getContentId(content));
-			System.out.println("-------------------------------------");
 		}
 		return contents;
 	}
@@ -150,13 +154,48 @@ public class QBSpider {
 		}
 	}
 	
+	public void writeToDB(Elements contents) throws ClassNotFoundException, SQLException{
+		Connection conn = SQLite3Util.getConnection();
 
-	public static void main(String[] args) throws IOException {
+		Statement stat = conn.createStatement();
+		stat.executeUpdate("drop table if exists QB_CONTENT;");
+		stat.executeUpdate("create table QB_CONTENT (number, CONTENT);");
+		
+		PreparedStatement prep = conn.prepareStatement("insert into QB_CONTENT values (?, ?);");
+		
+		List<String> list = new ArrayList<String>();
+		for (Element content : contents) {
+
+			String id = getContentId(content);
+			String text = content.text();
+			
+			prep.setString(1, id);
+			prep.setString(2, text);
+			
+			prep.addBatch();
+			
+			list.add(id);
+			if(list.contains(id)){
+				System.out.println(id);
+			}
+	//		System.out.println("to db:"+id);
+	//		System.out.println(text);
+		}
+
+		conn.setAutoCommit(false);
+		prep.executeBatch();
+		conn.commit();
+		conn.setAutoCommit(true);
+	
+		conn.close();
+	}
+
+	public static void main(String[] args) throws Exception {
 		String baseUrl = "http://www.qiushibaike.com";
 		String url = baseUrl + "/text";
 		QBSpider spider = new QBSpider(url);
 		Elements contents = spider.findMoreContents();
-	//	spider.addToDoc(contents);
+		spider.writeToDB(contents);
 	}
 
 }

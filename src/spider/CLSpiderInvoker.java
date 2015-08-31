@@ -35,9 +35,9 @@ public class CLSpiderInvoker {
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		String baseUrl = "http://cl.mocl.xyz/";
+		String baseUrl = "http://cl.dzcl.pw/";
 		String savePath = "g:\\clpics\\";
-		for (int i = 1; i < 3; i++) {
+		for (int i = 5; i < 8; i++) {
 			String url = baseUrl + "thread0806.php?fid=16&search=&page=" + i;
 			System.out.println("#######download page: " + i);
 			downloadByPage(baseUrl, url, savePath);
